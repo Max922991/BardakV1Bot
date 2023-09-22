@@ -5,6 +5,9 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 @Table(name = "orders")
 @Entity
@@ -23,31 +26,31 @@ public class Order {
     @Column(name = "time_of_record", nullable = false)
     LocalDateTime timeOfRecord;
 
-    @Column(name = "complex_washing")
-    String complexWashing;
-
-    @Column(name = "body_cleaning")
-    String bodyСleaning;
-
-    @Column(name = "quartz_application")
-    String quartzApplication;
-
-    @Column(name = "disk_cleaning")
-    String diskCleaning;
-
-    @Column(name = "skin_lotion")
-    String skinLotion;
-
-    @Column(name = "plastic_lotion")
-    String plasticLotion;
-
-    @Column(name = "anti_rain")
-    String antiRain;
-
-    boolean record;
+    @Column(name = "is_verified")
+    Boolean record;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id")
-    private Client client;
+    Client client;
 
+    @ManyToMany
+    @JoinTable(
+            name = "oreder_services",
+            joinColumns = @JoinColumn(name = "oreder_id"),
+            inverseJoinColumns = @JoinColumn(name = "service_id")
+    )
+    List<Service> services;
+
+    public void addService(Service service) {
+        if (services == null) {
+            services = new ArrayList<>();
+        }
+        services.add(service);
+    }
+    public void deleteService(Service service) {
+        if (!services.contains(service)) {
+            throw new NoSuchElementException();
+        }
+        services.remove(service);
+    }
 }

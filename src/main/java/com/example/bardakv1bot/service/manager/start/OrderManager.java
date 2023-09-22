@@ -1,9 +1,12 @@
 package com.example.bardakv1bot.service.manager.start;
 
+import com.example.bardakv1bot.entity.Order;
+import com.example.bardakv1bot.entity.Service;
 import com.example.bardakv1bot.factory.AnswerMethodFactory;
 import com.example.bardakv1bot.factory.KeyboardFactory;
 import com.example.bardakv1bot.repository.ClientRepo;
 import com.example.bardakv1bot.repository.OrderRepo;
+import com.example.bardakv1bot.repository.ServiceRepo;
 import com.example.bardakv1bot.service.manager.AbstractManager;
 import com.example.bardakv1bot.telegram.Bot;
 import lombok.AccessLevel;
@@ -30,6 +33,7 @@ public class OrderManager extends AbstractManager {
     final AnswerMethodFactory methodFactory;
     final KeyboardFactory keyboardFactory;
     final ClientRepo clientRepo;
+    final ServiceRepo serviceRepo;
     final OrderRepo orderRepo;
 
 
@@ -57,35 +61,53 @@ public class OrderManager extends AbstractManager {
             case WASH1, WASH2, WASH3, WASH4 -> {
                 return choosingAService(callbackQuery);
             }
+            case COMPLEXWASH -> {
+                return setOrderService(callbackQuery);
+            }
         }
         return null;
     }
 
+    private BotApiMethod<?> setOrderService(CallbackQuery callbackQuery) {
+        var user = clientRepo.findById(callbackQuery.getFrom().getId()).orElseThrow();
+        var order = orderRepo.findByClientAndRecord(user, true);
+        Service service = serviceRepo.findByTittle(callbackQuery.getData());
+        if (!order.getServices().contains(service)) {
+            order.addService(service);
+        } else {
+            order.deleteService(service);
+        }
+        orderRepo.save(order);
+        return choosingAService(callbackQuery);
+    }
+
 
     private BotApiMethod<?> washRecord(CallbackQuery callbackQuery) {
+        Order order = Order.builder()
+                .build();
+        orderRepo.save(order);
         return methodFactory.getEditMessageText(
                 callbackQuery,
                 """
                         Выберите день""",
                 keyboardFactory.getInlineKeyboard(
-                        List.of(getDate().get(0), getDate().get(1),
-                                getDate().get(2), getDate().get(3),
-                                getDate().get(4), getDate().get(5), getDate().get(6)),
-                        List.of(3, 4),
+                        getDate(),
+                        getDaysCfg(getDate()),
                         List.of(DAY_1, DAY_2, DAY_3, DAY_4, DAY_5, DAY_6, DAY_7)
-
                 ));
     }
 
 
     private BotApiMethod<?> choosingATimeOfWashing(CallbackQuery callbackQuery) {
+        List<String> text = getTime();
+        text.add("Назад");
         return methodFactory.getEditMessageText(
                 callbackQuery,
                 """
                         Выберите время""",
                 keyboardFactory.getInlineKeyboard(
                         // List.of("10:00", "12:30", "15:00", "17:30", "Назад"),
-                        List.of(getTime().get(0), getTime().get(1), getTime().get(2), getTime().get(3), "Назад"),
+                        text,
                         List.of(4, 1),
                         List.of(WASH1, WASH2, WASH3, WASH4, CARWASH)
                 )
@@ -94,12 +116,26 @@ public class OrderManager extends AbstractManager {
 
 
     private BotApiMethod<?> choosingAService(CallbackQuery callbackQuery) {
+//        List<String> services = serviceRepo.findAll().stream()
+//                .map(Service::getTittle)
+//                .toList();
+        var user = clientRepo.findById(callbackQuery.getFrom().getId()).orElseThrow();
+        var order = orderRepo.findByClientAndRecord(user, true);
+        List<String> services = new ArrayList<>();
+        for (Service service: serviceRepo.findAll()) {
+            if (order.getServices().contains(service)) {
+                services.add("+ " + service.getTittle());
+            } else {
+                services.add(service.getTittle());
+            }
+        }
+
         return methodFactory.getEditMessageText(
                 callbackQuery,
                 """
                         Выберите услугу """,
                 keyboardFactory.getInlineKeyboard(
-                        List.of("3-x фазная мойка", "Хим.чистка дисков", "Кварц", "Хим.чистка кузова", "Лосьон кожи", "Лосьон пластика", "Назад", "Подтвердить"),
+                        services,
                         List.of(3, 3, 2),
                         List.of(COMPLEXWASH, DISCCLEANING, QUARTZAPPLICATION, BODYCLEANING, SCINLOTION, PLASTICLOTION, DAY_1, APPLY)
                 )
@@ -137,6 +173,7 @@ public class OrderManager extends AbstractManager {
                 list.add("Занято");
             }
         }
+//todo Проверить наличие записи на каждое время в заказах
         return list;
     }
 }

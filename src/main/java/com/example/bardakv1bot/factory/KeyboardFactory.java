@@ -13,9 +13,11 @@ import java.util.List;
 @Component
 public class KeyboardFactory {
 
-    public InlineKeyboardMarkup getInlineKeyboard(List<String> text,
+    public InlineKeyboardMarkup getInlineKeyboard(
+            List<String> text,
                                                   List<Integer> configuration,
-                                                  List<String> data) {
+                                                  List<String> data
+    ) {
         int index = 0;
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
         for (Integer rowNumber : configuration) {

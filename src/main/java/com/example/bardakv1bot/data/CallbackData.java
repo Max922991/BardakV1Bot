@@ -24,17 +24,6 @@ public class CallbackData {
     public static final String WASH4 = "wash4";
 
 
-    public static final String COMPLEXWASHING = "complexWashing";
-    public static final String BODYCLEANING = "bodyСleaning";
-    public static final String QUARTZAPPLICATION = "quartzApplication";
-    public static final String DISCCLEANING = "diskCleaning";
-    public static final String SCINLOTION = "skinLotion";
-    public static final String PLASTICLOTION = "plasticLotion";
-    public static final String ANTIRAIN = "antiRain";
-
-
-
-
     public static final String DAY_1 = "day_1";
     public static final String DAY_2 = "day_2";
     public static final String DAY_3 = "day_3";

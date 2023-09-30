@@ -23,8 +23,10 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.AUTO)
     Long id;
 
-    @Column(name = "time_of_record", nullable = false)
-    LocalDateTime timeOfRecord;
+//    @Column(name = "time_of_record", nullable = false)
+//    LocalDateTime timeOfRecord;
+
+    String weekDay;
 
     @Column(name = "is_verified")
     Boolean record;

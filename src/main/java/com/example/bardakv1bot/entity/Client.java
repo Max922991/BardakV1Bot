@@ -18,13 +18,12 @@ public class Client {
 
     @Id
     @Column(name = "id")
-    @GeneratedValue(strategy = GenerationType.AUTO)
     Long id;
 
     @Column(name = "name")
     String name;
 
-    @Column(name = "phone_number", nullable = false, unique = true)
+    @Column(name = "phone_number", unique = true)
     String phoneNumber;
 
     @OneToMany(mappedBy = "client", cascade = CascadeType.ALL)

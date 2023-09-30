@@ -14,4 +14,5 @@ public interface OrderRepo extends JpaRepository<Order, Long> {
 
 //    Order findOrderByTimeOfRecord(LocalTime time);
     Order findByClientAndRecord(Client client, Boolean record);
+    void deleteByClientAndRecord(Client client, Boolean record);
 }

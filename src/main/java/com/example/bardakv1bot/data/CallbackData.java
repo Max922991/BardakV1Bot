@@ -33,7 +33,9 @@ public class CallbackData {
     public static final String DAY_7 = "day_7";
 
 
-
+    public static final String SERVICE = "service_";
+    public static final String TIME = "time_";
+    public static final String TIME_ADD = "time_add_";
 
 
     public static final String TIMETABLE = "timetable";

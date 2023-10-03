@@ -27,6 +27,9 @@ public class CallbackQueryHandler {
     public BotApiMethod<?> answer(CallbackQuery callbackQuery, Bot bot) {
         String callbackData = callbackQuery.getData();
         String keyWord = callbackData.split("_")[0];
+        if ("service".equals(keyWord) || "time".equals(keyWord)) {
+            return orderManager.answerCallbackQuery(callbackQuery, bot);
+        }
         switch (callbackData) {
             case HELP -> {
                 return helpManager.answerCallbackQuery(callbackQuery, bot);

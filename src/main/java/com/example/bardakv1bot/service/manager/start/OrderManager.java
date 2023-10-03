@@ -28,6 +28,7 @@ import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 import static com.example.bardakv1bot.data.CallbackData.*;
 
@@ -58,12 +59,19 @@ public class OrderManager extends AbstractManager {
     @Transactional
     public BotApiMethod<?> answerCallbackQuery(CallbackQuery callbackQuery, Bot bot) {
         String queryData = callbackQuery.getData();
+        String keyWord = queryData.split("_")[0];
+        if ("service".equals(keyWord)) {
+            return addService(callbackQuery, queryData.split("_")[1]);
+        }
+        if ("time".equals(keyWord)) {
+            return chooseTime(callbackQuery);
+        }
         switch (queryData) {
             case CARWASH -> {
                 return washRecord(callbackQuery);
             }
             case DAY_1, DAY_2, DAY_3, DAY_4, DAY_5, DAY_6, DAY_7 -> {
-                return choosingATimeOfWashing(callbackQuery);
+                return chooseService(callbackQuery, true);
             }
 //            case WASH1, WASH2, WASH3, WASH4 -> {
 //                return choosingAService(callbackQuery);
@@ -75,28 +83,80 @@ public class OrderManager extends AbstractManager {
         return null;
     }
 
-    private BotApiMethod<?> choosingATimeOfWashing(CallbackQuery callbackQuery) {
-        var client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
-        var order = orderRepo.findByClientAndRecord(client, true);
-        Integer dayNumber = Integer.parseInt(callbackQuery.getData().split("_")[1]);
-        order.setWeekDay(DayOfWeek.of(dayNumber).getDisplayName(TextStyle.FULL, Locale.ROOT));
-        orderRepo.save(order);
-
+    private BotApiMethod<?> chooseTime(CallbackQuery callbackQuery) {
+        List<String> text = new ArrayList<>();
+        List<Integer> cfg = new ArrayList<>();
+        List<String> data = new ArrayList<>();
+        text.add("Назад");
+        cfg.add(1);
+        data.add(CARWASH);
+        int row = 0;
+        for (int i = 8; i <= 18; i++) {
+            text.add(i + ":00");
+            data.add(TIME_ADD + i);
+            if (row == 4) {
+                cfg.add(row);
+                row = 0;
+            }
+            row += 1;
+        }
+        if (row != 0) {
+            cfg.add(row);
+        }
+        text.add("Далее");
+        cfg.add(1);
+        data.add("next_step");
         return methodFactory.getEditMessageText(
                 callbackQuery,
-                "Выберете услугу",
-                getServicesKeyboard()
+                "Выберете время",
+                keyboardFactory.getInlineKeyboard(
+                        text, cfg, data
+                )
         );
     }
 
-    private InlineKeyboardMarkup getServicesKeyboard() {
+    private BotApiMethod<?> addService(CallbackQuery callbackQuery, String id) {
+        var service = serviceRepo.findById(UUID.fromString(id)).orElseThrow();
+        var order = orderRepo.findByClientAndRecord(
+                clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow(),
+                true
+        );
+        if (order.getServices() != null && order.getServices().contains(service)) {
+            order.deleteService(service);
+        } else {
+            order.addService(service);
+        }
+
+        orderRepo.save(order);
+        return chooseService(callbackQuery, false);
+    }
+    private BotApiMethod<?> chooseService(CallbackQuery callbackQuery, boolean flag) {
+        var client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
+        var order = orderRepo.findByClientAndRecord(client, true);
+        if (flag) {
+            Integer dayNumber = Integer.parseInt(callbackQuery.getData().split("_")[1]);
+            order.setWeekDay(DayOfWeek.of(dayNumber).getDisplayName(TextStyle.FULL, Locale.ROOT));
+            orderRepo.save(order);
+        }
+        return methodFactory.getEditMessageText(
+                callbackQuery,
+                "Выберете услугу",
+                getServicesKeyboard(order)
+        );
+    }
+
+    private InlineKeyboardMarkup getServicesKeyboard(Order order) {
         List<Service> services = serviceRepo.findAll();
         List<String> text = new ArrayList<>();
         List<Integer> cfg = new ArrayList<>();
         List<String> data = new ArrayList<>();
         int row = 0;
         for (Service service: services) {
-            text.add(service.getTittle());
+            if (order.getServices().contains(service)) {
+                text.add("✅" + service.getTittle());
+            } else {
+                text.add(service.getTittle());
+            }
             data.add("service_" + service.getId());
             if (row == 3) {
                 cfg.add(row);
@@ -107,6 +167,11 @@ public class OrderManager extends AbstractManager {
         if (row != 0) {
             cfg.add(row);
         }
+        cfg.add(2);
+        text.add("Назад");
+        text.add("Далее");
+        data.add(CARWASH);
+        data.add(TIME);
         return keyboardFactory.getInlineKeyboard(
                 text, cfg, data
         );

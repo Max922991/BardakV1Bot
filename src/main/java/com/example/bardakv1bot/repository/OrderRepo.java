@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -14,5 +15,6 @@ public interface OrderRepo extends JpaRepository<Order, Long> {
 
 //    Order findOrderByTimeOfRecord(LocalTime time);
     Order findByClientAndRecord(Client client, Boolean record);
+    List<Order> findAllByRecordAndCompleted(Boolean record, Boolean completed);
     void deleteByClientAndRecord(Client client, Boolean record);
 }

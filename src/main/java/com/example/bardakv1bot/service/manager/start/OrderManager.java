@@ -20,10 +20,7 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 
 import java.time.DayOfWeek;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
@@ -87,22 +84,44 @@ public class OrderManager extends AbstractManager {
         List<String> text = new ArrayList<>();
         List<Integer> cfg = new ArrayList<>();
         List<String> data = new ArrayList<>();
+        List<String> timeList = new ArrayList<>(List.of("10:00", "12:30", "15:00", "17:30"));
+
         text.add("Назад");
         cfg.add(1);
         data.add(CARWASH);
-        int row = 0;
-        for (int i = 8; i <= 18; i++) {
-            text.add(i + ":00");
-            data.add(TIME_ADD + i);
-            if (row == 4) {
-                cfg.add(row);
-                row = 0;
+        var user = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
+        var order = orderRepo.findByClientAndRecord(user, false);
+        List<Order> orders = orderRepo.findAllByRecordAndCompleted(true, false);
+        String weekDay = order.getWeekDay();
+
+        for (Order check: orders) {
+            if (timeList.contains(check.getTimeOfRecord()) && weekDay.equals(check.getWeekDay())) {
+                timeList.remove(check.getTimeOfRecord());
             }
-            row += 1;
         }
-        if (row != 0) {
-            cfg.add(row);
+
+        LocalDateTime now = LocalDateTime.now();
+        if (now.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH).equals(order.getWeekDay())) {
+            int minutes = now.getHour() * 60 + now.getMinute();
+            int row = 0;
+            for (String time: timeList) {
+                if (Integer.parseInt(time.split(":")[0]) * 60 + Integer.parseInt(time.split(":")[1]) >= minutes) {
+                    text.add(time);
+                    data.add("time_" + time);
+                    row += 1;
+                }
+            }
+            if (row != 0) {
+                cfg.add(row);
+            }
+        } else {
+            for (String time: timeList) {
+                text.add(time);
+                data.add("time_" + time);
+            }
+            cfg.add(timeList.size());
         }
+
         text.add("Далее");
         cfg.add(1);
         data.add("next_step");
@@ -119,7 +138,7 @@ public class OrderManager extends AbstractManager {
         var service = serviceRepo.findById(UUID.fromString(id)).orElseThrow();
         var order = orderRepo.findByClientAndRecord(
                 clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow(),
-                true
+                false
         );
         if (order.getServices() != null && order.getServices().contains(service)) {
             order.deleteService(service);
@@ -132,7 +151,7 @@ public class OrderManager extends AbstractManager {
     }
     private BotApiMethod<?> chooseService(CallbackQuery callbackQuery, boolean flag) {
         var client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
-        var order = orderRepo.findByClientAndRecord(client, true);
+        var order = orderRepo.findByClientAndRecord(client, false);
         if (flag) {
             Integer dayNumber = Integer.parseInt(callbackQuery.getData().split("_")[1]);
             order.setWeekDay(DayOfWeek.of(dayNumber).getDisplayName(TextStyle.FULL, Locale.ROOT));
@@ -179,11 +198,11 @@ public class OrderManager extends AbstractManager {
 
     private BotApiMethod<?> washRecord(CallbackQuery callbackQuery) {
         var client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
-        orderRepo.deleteByClientAndRecord(client, true);
+        orderRepo.deleteByClientAndRecord(client, false);
 
         Order order = Order.builder()
                 .client(client)
-                .record(true)
+                .record(false)
                 .build();
         orderRepo.save(order);
         return methodFactory.getEditMessageText(
@@ -205,7 +224,6 @@ public class OrderManager extends AbstractManager {
             text.add(DayOfWeek.of(day).getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
             data.add("day_" + day);
         }
-
         return keyboardFactory.getInlineKeyboard(
                 text,
                 List.of(3, 3, 1),
@@ -213,115 +231,6 @@ public class OrderManager extends AbstractManager {
         );
     }
 
-//
-//    private BotApiMethod<?> setOrderService(CallbackQuery callbackQuery) {
-//        var user = clientRepo.findById(callbackQuery.getFrom().getId()).orElseThrow();
-//        var order = orderRepo.findByClientAndRecord(user, true);
-//        Service service = serviceRepo.findByTittle(callbackQuery.getData());
-//        if (!order.getServices().contains(service)) {
-//            order.addService(service);
-//        } else {
-//            order.deleteService(service);
-//        }
-//        orderRepo.save(order);
-//        return choosingAService(callbackQuery);
-//    }
-//
-//
-//    private BotApiMethod<?> washRecord(CallbackQuery callbackQuery) {
-//        Order order = Order.builder()
-//                .build();
-//        orderRepo.save(order);
-//        return methodFactory.getEditMessageText(
-//                callbackQuery,
-//                """
-//                        Выберите день""",
-//                keyboardFactory.getInlineKeyboard(
-//                        getDate(),
-//                        getDaysCfg(getDate()),
-//                        List.of(DAY_1, DAY_2, DAY_3, DAY_4, DAY_5, DAY_6, DAY_7)
-//                ));
-//    }
-//
-//
-//    private BotApiMethod<?> choosingATimeOfWashing(CallbackQuery callbackQuery) {
-//        List<String> text = getTime();
-//        text.add("Назад");
-//        return methodFactory.getEditMessageText(
-//                callbackQuery,
-//                """
-//                        Выберите время""",
-//                keyboardFactory.getInlineKeyboard(
-//                        // List.of("10:00", "12:30", "15:00", "17:30", "Назад"),
-//                        text,
-//                        List.of(4, 1),
-//                        List.of(WASH1, WASH2, WASH3, WASH4, CARWASH)
-//                )
-//        );
-//    }
-//
-//
-//    private BotApiMethod<?> choosingAService(CallbackQuery callbackQuery) {
-////        List<String> services = serviceRepo.findAll().stream()
-////                .map(Service::getTittle)
-////                .toList();
-//        var user = clientRepo.findById(callbackQuery.getFrom().getId()).orElseThrow();
-//        var order = orderRepo.findByClientAndRecord(user, true);
-//        List<String> services = new ArrayList<>();
-//        for (Service service: serviceRepo.findAll()) {
-//            if (order.getServices().contains(service)) {
-//                services.add("+ " + service.getTittle());
-//            } else {
-//                services.add(service.getTittle());
-//            }
-//        }
-//
-//        return methodFactory.getEditMessageText(
-//                callbackQuery,
-//                """
-//                        Выберите услугу """,
-//                keyboardFactory.getInlineKeyboard(
-//                        services,
-//                        List.of(3, 3, 2),
-//                        List.of(COMPLEXWASH, DISCCLEANING, QUARTZAPPLICATION, BODYCLEANING, SCINLOTION, PLASTICLOTION, DAY_1, APPLY)
-//                )
-//        );
-//    }
-//
-//
-//    private static List<String> getDate() {
-//        LocalDate currentDate = LocalDate.now();
-//        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM");
-//        List<String> formattedDate = new ArrayList<>();
-//        for (int i = 0; i < 7; i++) {
-//            formattedDate.add(currentDate.format(formatter));
-//            currentDate = currentDate.plusDays(1);
-//        }
-//        return formattedDate;
-//    }
-//
-//    private List<String> getTime() {
-//        LocalTime currentTime = LocalTime.now();
-//        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
-//        List<String> list = new ArrayList<>();
-//
-//        LocalTime[] availableTimes = {LocalTime.of(10, 0),
-//                LocalTime.of(12, 30),
-//                LocalTime.of(15, 0),
-//                LocalTime.of(17, 30)};
-//
-//        for (LocalTime appointmentTime : availableTimes) {
-//            if (currentTime.isBefore(appointmentTime)) {
-//                String formattedTime = appointmentTime.format(formatter);
-//                list.add(formattedTime);
-//            }
-//            if (currentTime.isAfter(appointmentTime)) {
-//                list.add("Занято");
-//            }
-//        }
-////todo Проверить наличие записи на каждое время в заказах
-//        return list;
-//    }
 }
 
 

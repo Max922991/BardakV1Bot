@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties("telegram-bot")
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class TelegramProperties {
-
+    String admin;
     String username;
     String token;
     String path;

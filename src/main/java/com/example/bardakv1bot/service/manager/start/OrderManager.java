@@ -1,5 +1,6 @@
 package com.example.bardakv1bot.service.manager.start;
 
+import com.example.bardakv1bot.entity.Client;
 import com.example.bardakv1bot.entity.Order;
 import com.example.bardakv1bot.entity.Service;
 import com.example.bardakv1bot.factory.AnswerMethodFactory;
@@ -12,6 +13,7 @@ import com.example.bardakv1bot.telegram.Bot;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
@@ -29,6 +31,7 @@ import java.util.UUID;
 
 import static com.example.bardakv1bot.data.CallbackData.*;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -61,6 +64,9 @@ public class OrderManager extends AbstractManager {
             return addService(callbackQuery, queryData.split("_")[1]);
         }
         if ("time".equals(keyWord)) {
+            if (queryData.split("_").length == 2) {
+                return putTime(callbackQuery);
+            }
             return chooseTime(callbackQuery);
         }
         switch (queryData) {
@@ -70,14 +76,16 @@ public class OrderManager extends AbstractManager {
             case DAY_1, DAY_2, DAY_3, DAY_4, DAY_5, DAY_6, DAY_7 -> {
                 return chooseService(callbackQuery, true);
             }
-//            case WASH1, WASH2, WASH3, WASH4 -> {
-//                return choosingAService(callbackQuery);
-//            }
-//            case COMPLEXWASH -> {
-//                return setOrderService(callbackQuery);
-//            }
         }
         return null;
+    }
+
+    private BotApiMethod<?> putTime(CallbackQuery callbackQuery) {
+        Client client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
+        Order order = orderRepo.findByClientAndRecord(client, false);
+        order.setTimeOfRecord(callbackQuery.getData().split("_")[1]);
+        orderRepo.save(order);
+        return chooseTime(callbackQuery);
     }
 
     private BotApiMethod<?> chooseTime(CallbackQuery callbackQuery) {
@@ -86,7 +94,7 @@ public class OrderManager extends AbstractManager {
         List<String> data = new ArrayList<>();
         List<String> timeList = new ArrayList<>(List.of("10:00", "12:30", "15:00", "17:30"));
 
-        text.add("Назад");
+        text.add("\uD83D\uDD19 Назад");
         cfg.add(1);
         data.add(CARWASH);
         var user = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
@@ -94,7 +102,7 @@ public class OrderManager extends AbstractManager {
         List<Order> orders = orderRepo.findAllByRecordAndCompleted(true, false);
         String weekDay = order.getWeekDay();
 
-        for (Order check: orders) {
+        for (Order check : orders) {
             if (timeList.contains(check.getTimeOfRecord()) && weekDay.equals(check.getWeekDay())) {
                 timeList.remove(check.getTimeOfRecord());
             }
@@ -104,9 +112,13 @@ public class OrderManager extends AbstractManager {
         if (now.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH).equals(order.getWeekDay())) {
             int minutes = now.getHour() * 60 + now.getMinute();
             int row = 0;
-            for (String time: timeList) {
+            for (String time : timeList) {
                 if (Integer.parseInt(time.split(":")[0]) * 60 + Integer.parseInt(time.split(":")[1]) >= minutes) {
-                    text.add(time);
+                    if (order.getTimeOfRecord() != null && order.getTimeOfRecord().equals(time)) {
+                        text.add("✅ " + time);
+                    } else {
+                        text.add(time);
+                    }
                     data.add("time_" + time);
                     row += 1;
                 }
@@ -115,14 +127,18 @@ public class OrderManager extends AbstractManager {
                 cfg.add(row);
             }
         } else {
-            for (String time: timeList) {
-                text.add(time);
+            for (String time : timeList) {
+                if (order.getTimeOfRecord() != null && order.getTimeOfRecord().equals(time)) {
+                    text.add("✅ " + time);
+                } else {
+                    text.add(time);
+                }
                 data.add("time_" + time);
             }
             cfg.add(timeList.size());
         }
 
-        text.add("Далее");
+        text.add("Далее \uD83D\uDD1C");
         cfg.add(1);
         data.add("next_step");
         return methodFactory.getEditMessageText(
@@ -149,6 +165,7 @@ public class OrderManager extends AbstractManager {
         orderRepo.save(order);
         return chooseService(callbackQuery, false);
     }
+
     private BotApiMethod<?> chooseService(CallbackQuery callbackQuery, boolean flag) {
         var client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
         var order = orderRepo.findByClientAndRecord(client, false);
@@ -170,7 +187,7 @@ public class OrderManager extends AbstractManager {
         List<Integer> cfg = new ArrayList<>();
         List<String> data = new ArrayList<>();
         int row = 0;
-        for (Service service: services) {
+        for (Service service : services) {
             if (order.getServices().contains(service)) {
                 text.add("✅" + service.getTittle());
             } else {
@@ -187,8 +204,8 @@ public class OrderManager extends AbstractManager {
             cfg.add(row);
         }
         cfg.add(2);
-        text.add("Назад");
-        text.add("Далее");
+        text.add("\uD83D\uDD19 Назад");
+        text.add("Далее \uD83D\uDD1C");
         data.add(CARWASH);
         data.add(TIME);
         return keyboardFactory.getInlineKeyboard(
@@ -216,11 +233,11 @@ public class OrderManager extends AbstractManager {
         List<String> text = new ArrayList<>();
         List<String> data = new ArrayList<>();
         int dayNumber = LocalDateTime.now().getDayOfWeek().getValue();
-        for (int day = dayNumber; day <= 7; day ++) {
+        for (int day = dayNumber; day <= 7; day++) {
             text.add(DayOfWeek.of(day).getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
             data.add("day_" + day);
         }
-        for (int day = 1; day < dayNumber; day ++) {
+        for (int day = 1; day < dayNumber; day++) {
             text.add(DayOfWeek.of(day).getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
             data.add("day_" + day);
         }

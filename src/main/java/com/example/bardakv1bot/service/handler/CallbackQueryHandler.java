@@ -1,9 +1,6 @@
 package com.example.bardakv1bot.service.handler;
 
-import com.example.bardakv1bot.service.manager.start.FeedbackManager;
-import com.example.bardakv1bot.service.manager.start.HelpManager;
-import com.example.bardakv1bot.service.manager.start.OrderManager;
-import com.example.bardakv1bot.service.manager.start.StartManager;
+import com.example.bardakv1bot.service.manager.start.*;
 import com.example.bardakv1bot.telegram.Bot;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -24,10 +21,17 @@ public class CallbackQueryHandler {
     HelpManager helpManager;
     OrderManager orderManager;
     FeedbackManager feedbackManager;
+    PhoneManager phoneManager;
 
     public BotApiMethod<?> answer(CallbackQuery callbackQuery, Bot bot) {
         String callbackData = callbackQuery.getData();
         String keyWord = callbackData.split("_")[0];
+        if ("phone".equals(keyWord)) {
+            if ("phone_enter".equals(callbackData)) {
+                return orderManager.answerCallbackQuery(callbackQuery, bot);
+            }
+            return phoneManager.answerCallbackQuery(callbackQuery, bot);
+        }
         if ("finish_order".equals(callbackData)) {
                 return orderManager.answerCallbackQuery(callbackQuery, bot);
         }

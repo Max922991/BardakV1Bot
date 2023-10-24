@@ -1,10 +1,11 @@
 package com.example.bardakv1bot.data;
 
-import jakarta.persistence.Column;
-
-import java.time.LocalDate;
-
 public class CallbackData {
+    public static final String phone = "phone_";
+    public static final String phone_backspace = "phone_backspace";
+    public static final String phone_digit_ = "phone_digit_";
+    public static final String phone_enter = "phone_enter";
+
 
     public static final String FEEDBACK = "feedback";
     public static final String HELLO = "hello";
@@ -38,11 +39,7 @@ public class CallbackData {
     public static final String TIME_ADD = "time_add_";
 
 
-
     public static final String FINISH_ORDER = "finish_order";
-    public static final String CHANGE_NUMBER = "change_number";
-
-
 
 
 }

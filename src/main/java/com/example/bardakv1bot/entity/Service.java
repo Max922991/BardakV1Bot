@@ -22,8 +22,8 @@ public class Service {
     @GeneratedValue(strategy = GenerationType.UUID)
     UUID id;
 
-    @Column(name = "title", unique = true)
-    String title;
+    @Column(name = "tittle", unique = true)
+    String tittle;
 
     String description;
 

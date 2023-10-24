@@ -1,5 +1,6 @@
 package com.example.bardakv1bot.service.manager.start;
 
+import com.example.bardakv1bot.entity.Action;
 import com.example.bardakv1bot.entity.Client;
 import com.example.bardakv1bot.entity.Order;
 import com.example.bardakv1bot.entity.Service;
@@ -17,10 +18,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
+import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChat;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.Chat;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.io.File;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.format.TextStyle;
@@ -43,7 +52,6 @@ public class OrderManager extends AbstractManager {
     final ServiceRepo serviceRepo;
     final OrderRepo orderRepo;
 
-
     @Override
     public BotApiMethod<?> answerCommand(Message message, Bot bot) {
         return null;
@@ -52,7 +60,32 @@ public class OrderManager extends AbstractManager {
 
     @Override
     public BotApiMethod<?> answerMessage(Message message, Bot bot) {
-        return null;
+        Long chatId = message.getChatId();
+        Integer messageId = message.getMessageId();
+        try {
+            bot.execute(
+                    DeleteMessage
+                            .builder()
+                            .chatId(chatId)
+                            .messageId(messageId - 1)
+                            .build()
+            );
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
+        return saveNewPhoneNumber(message);
+    }
+
+    private BotApiMethod<?> saveNewPhoneNumber(Message message) {
+        Long id = message.getChatId();
+        Client client = clientRepo.findById(id).orElseThrow();
+        client.setAction(Action.FREE);
+
+        String text = message.getText();
+        client.setPhoneNumber(text);
+        clientRepo.save(client);
+
+        return nextStep(message);
     }
 
     @Override
@@ -60,6 +93,19 @@ public class OrderManager extends AbstractManager {
     public BotApiMethod<?> answerCallbackQuery(CallbackQuery callbackQuery, Bot bot) {
         String queryData = callbackQuery.getData();
         String keyWord = queryData.split("_")[0];
+        if ("finish_order".equals(queryData)) {
+            try {
+                return finishOrder(callbackQuery, bot);
+            } catch (TelegramApiException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        if ("change_number".equals(queryData)) {
+            return changePhoneNumber(callbackQuery);
+        }
+        if ("next_step".equals(queryData)) {
+            return nextStep(callbackQuery);
+        }
         if ("service".equals(keyWord)) {
             return addService(callbackQuery, queryData.split("_")[1]);
         }
@@ -86,6 +132,100 @@ public class OrderManager extends AbstractManager {
         order.setTimeOfRecord(callbackQuery.getData().split("_")[1]);
         orderRepo.save(order);
         return chooseTime(callbackQuery);
+    }
+
+    private BotApiMethod<?> nextStep(CallbackQuery callbackQuery) {
+        Client client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
+        String phoneNumber = client.getPhoneNumber();
+
+        if (phoneNumber != null) {
+            return methodFactory.getEditMessageText(
+                    callbackQuery,
+                    "Вы хотите оставить текущий номер или изменить его?",
+                    keyboardFactory.getInlineKeyboard(
+                            List.of(phoneNumber, "Ввести другой"),
+                            List.of(2),
+                            List.of(FINISH_ORDER, CHANGE_NUMBER)
+                    )
+            );
+        }
+        return changePhoneNumber(callbackQuery);
+    }
+
+    private BotApiMethod<?> nextStep(Message message) {
+        Client client = clientRepo.findById(message.getChatId()).orElseThrow();
+        String phoneNumber = client.getPhoneNumber();
+
+        return methodFactory.getSendMessage(
+                message.getChatId(),
+                "Вы хотите оставить текущий номер или изменить его?",
+                keyboardFactory.getInlineKeyboard(
+                        List.of(phoneNumber, "Ввести другой"),
+                        List.of(2),
+                        List.of(FINISH_ORDER, CHANGE_NUMBER)
+                )
+        );
+    }
+
+    private BotApiMethod<?> finishOrder(CallbackQuery callbackQuery, Bot bot) throws TelegramApiException {
+        Long id = callbackQuery.getMessage().getChatId();
+        Client client = clientRepo.findById(id).orElseThrow();
+        Order order = orderRepo.findByClientAndRecord(client, false);
+
+        order.setRecord(true);
+
+        order.setCompleted(true);
+
+        orderRepo.save(order);
+
+        bot.execute(
+                methodFactory.getSendMessage(
+                        660883009L,
+                        getOrderInfo(order),
+                        null
+                )
+        );
+
+        return methodFactory.getEditMessageText(
+                callbackQuery,
+                getOrderInfo(order),
+                null
+        );
+    }
+
+
+
+    private String getOrderInfo(Order order) {
+        List<Service> services = order.getServices();
+        StringBuilder sb = new StringBuilder();
+        sb.append("Order Information:\n");
+        sb.append("Week day: ").append(order.getWeekDay()).append("\n");
+        sb.append("Phone number: ")
+                .append(order.getClient()
+                        .getPhoneNumber()).append("\n");
+
+        sb.append("Services:\n");
+        for (Service service : services) {
+            sb.append("- ").append(service.getTitle()).append("\n");
+        }
+        return sb.toString();
+    }
+
+
+    private BotApiMethod<?> changePhoneNumber(CallbackQuery callbackQuery) {
+        Long id = callbackQuery.getMessage().getChatId();
+        Client client = clientRepo.findById(id).orElseThrow();
+        client.setAction(Action.SENDING_PHONE_NUMBER);
+        clientRepo.save(client);
+        return methodFactory.getEditMessageText(
+                callbackQuery,
+                "Введите номер",
+                keyboardFactory.getInlineKeyboard(
+                        List.of("Назад"),
+                        List.of(1),
+                        List.of("next_step")
+                )
+        );
     }
 
     private BotApiMethod<?> chooseTime(CallbackQuery callbackQuery) {
@@ -189,9 +329,9 @@ public class OrderManager extends AbstractManager {
         int row = 0;
         for (Service service : services) {
             if (order.getServices().contains(service)) {
-                text.add("✅" + service.getTittle());
+                text.add("✅" + service.getTitle());
             } else {
-                text.add(service.getTittle());
+                text.add(service.getTitle());
             }
             data.add("service_" + service.getId());
             if (row == 3) {
@@ -247,7 +387,6 @@ public class OrderManager extends AbstractManager {
                 data
         );
     }
-
 }
 
 

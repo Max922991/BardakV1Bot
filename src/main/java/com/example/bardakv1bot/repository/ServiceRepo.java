@@ -11,5 +11,5 @@ import java.util.UUID;
  */
 @Repository
 public interface ServiceRepo extends JpaRepository<Service, UUID> {
-    Service findByTittle(String tittle);
+    Service findByTitle(String title);
 }

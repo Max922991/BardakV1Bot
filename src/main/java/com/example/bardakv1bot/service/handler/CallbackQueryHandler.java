@@ -11,6 +11,7 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import static com.example.bardakv1bot.data.CallbackData.*;
 
@@ -27,7 +28,22 @@ public class CallbackQueryHandler {
     public BotApiMethod<?> answer(CallbackQuery callbackQuery, Bot bot) {
         String callbackData = callbackQuery.getData();
         String keyWord = callbackData.split("_")[0];
-        if ("service".equals(keyWord) || "time".equals(keyWord)) {
+        if ("finish_order".equals(callbackData)) {
+                return orderManager.answerCallbackQuery(callbackQuery, bot);
+        }
+        if ("change_number".equals(callbackData)) {
+            return orderManager.answerCallbackQuery(callbackQuery, bot);
+        }
+        if ("next_step".equals(callbackData)) {
+            return orderManager.answerCallbackQuery(callbackQuery, bot);
+        }
+        if ("service".equals(keyWord)) {
+            return orderManager.answerCallbackQuery(callbackQuery, bot);
+        }
+        if ("time".equals(keyWord)) {
+            if (callbackData.split("_").length == 2) {
+                return orderManager.answerCallbackQuery(callbackQuery, bot);
+            }
             return orderManager.answerCallbackQuery(callbackQuery, bot);
         }
         switch (callbackData) {

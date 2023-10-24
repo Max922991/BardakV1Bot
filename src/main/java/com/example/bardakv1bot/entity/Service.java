@@ -1,9 +1,6 @@
 package com.example.bardakv1bot.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -22,10 +19,11 @@ import java.util.UUID;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Service {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     UUID id;
 
-    @Column(name = "tittle", unique = true)
-    String tittle;
+    @Column(name = "title", unique = true)
+    String title;
 
     String description;
 

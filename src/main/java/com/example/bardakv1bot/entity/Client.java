@@ -28,4 +28,11 @@ public class Client {
 
     @OneToMany(mappedBy = "client", cascade = CascadeType.ALL)
     List<Order> orders;
+
+    @Enumerated(EnumType.STRING)
+    Action action;
+
+    @Enumerated(EnumType.STRING)
+    Role role;
 }
+

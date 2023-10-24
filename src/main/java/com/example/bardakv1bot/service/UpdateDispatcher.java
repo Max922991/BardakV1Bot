@@ -1,5 +1,6 @@
 package com.example.bardakv1bot.service;
 
+import com.example.bardakv1bot.entity.Action;
 import com.example.bardakv1bot.entity.Client;
 import com.example.bardakv1bot.repository.ClientRepo;
 import com.example.bardakv1bot.service.handler.CallbackQueryHandler;
@@ -49,6 +50,7 @@ public class UpdateDispatcher {
         if (user == null) {
             Client client = Client.builder()
                     .id(chatId)
+                    .action(Action.FREE)
                     .build();
             clientRepo.save(client);
         }

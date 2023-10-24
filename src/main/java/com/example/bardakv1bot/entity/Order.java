@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -40,8 +39,8 @@ public class Order {
 
     @ManyToMany
     @JoinTable(
-            name = "oreder_services",
-            joinColumns = @JoinColumn(name = "oreder_id"),
+            name = "order_services",
+            joinColumns = @JoinColumn(name = "order_id"),
             inverseJoinColumns = @JoinColumn(name = "service_id")
     )
     List<Service> services;
@@ -52,6 +51,7 @@ public class Order {
         }
         services.add(service);
     }
+
     public void deleteService(Service service) {
         if (!services.contains(service)) {
             throw new NoSuchElementException();

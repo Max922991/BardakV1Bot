@@ -147,7 +147,7 @@ public class OrderManager extends AbstractManager {
         bot.execute(
                 methodFactory.getSendMessage(
                         660883009L,
-                        getOrderInfo(order),
+                        getOrderInfo(order) + "\n" + "order ID " + order.getId(),
                         null
                 )
         );

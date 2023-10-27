@@ -44,7 +44,11 @@ public class PhoneManager extends AbstractManager {
 
     @Override
     public BotApiMethod<?> answerCallbackQuery(CallbackQuery callbackQuery, Bot bot) {
-        String[] words = callbackQuery.getData().split("_");
+        String data = callbackQuery.getData();
+        String[] words = data.split("_");
+        if (phone_drop.equals(data)) {
+            return dropNumber(callbackQuery);
+        }
         switch (words.length) {
             case 1 -> {
                 return mainMenu(callbackQuery);
@@ -83,6 +87,16 @@ public class PhoneManager extends AbstractManager {
         );
     }
 
+    public BotApiMethod<?> dropNumber(CallbackQuery callbackQuery) {
+
+        var client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
+        PhoneNumber phoneNumber = phoneRepo.findByClient(client);
+        phoneNumber.drop();
+        phoneRepo.save(phoneNumber);
+
+        return mainMenu(callbackQuery);
+    }
+
     private InlineKeyboardMarkup getMainKeyboard(Long chatId) {
         var client = clientRepo.findById(chatId).orElseThrow();
         PhoneNumber phoneNumber = phoneRepo.findByClient(client);
@@ -98,10 +112,10 @@ public class PhoneManager extends AbstractManager {
                         "4", "5", "6",
                         "7", "8", "9",
                         "Назад", "0", "Стереть",
-                        "Ввод"
+                        "Ввод", "Сброс"
                 ),
                 List.of(
-                        1, 3, 3, 3, 3, 1
+                        1, 3, 3, 3, 3, 2
                 ),
                 List.of(
                         "blank",
@@ -109,11 +123,10 @@ public class PhoneManager extends AbstractManager {
                         phone_digit_ + "4", phone_digit_ + "5", phone_digit_ + "6",
                         phone_digit_ + "7", phone_digit_ + "8", phone_digit_ + "9",
                         "next_step", phone_digit_ + "0", phone_backspace,
-                        phone_enter
+                        phone_enter, phone_drop
                 )
         );
     }
-
 }
 
 

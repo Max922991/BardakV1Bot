@@ -5,6 +5,7 @@ public class CallbackData {
     public static final String phone_backspace = "phone_backspace";
     public static final String phone_digit_ = "phone_digit_";
     public static final String phone_enter = "phone_enter";
+    public static final String phone_drop = "phone_drop";
 
 
     public static final String FEEDBACK = "feedback";

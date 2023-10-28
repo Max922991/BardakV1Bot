@@ -131,7 +131,7 @@ public class OrderManager extends AbstractManager {
                     )
             );
         }
-        return phoneManager.mainMenu(callbackQuery);
+        return phoneManager.mainMenu(callbackQuery, client, null);
     }
 
     private BotApiMethod<?> finishOrder(CallbackQuery callbackQuery, Bot bot) throws TelegramApiException {

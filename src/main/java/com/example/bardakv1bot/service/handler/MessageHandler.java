@@ -23,9 +23,6 @@ public class MessageHandler {
             case FREE -> {
                 return null;
             }
-            case SENDING_PHONE_NUMBER -> {
-                return orderManager.answerMessage(message, bot);
-            }
         }
         return null;
     }

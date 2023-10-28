@@ -108,10 +108,10 @@ public class PhoneManager extends AbstractManager {
         return keyboardFactory.getInlineKeyboard(
                 List.of(
                         phoneNumber.getPhoneNumber(),
-                        "1", "2", "3",
-                        "4", "5", "6",
-                        "7", "8", "9",
-                        "Назад", "0", "Стереть",
+                        "1\uFE0F⃣", "2\uFE0F⃣", "3\uFE0F⃣",
+                        "4\uFE0F⃣", "5\uFE0F⃣", "6\uFE0F⃣",
+                        "7\uFE0F⃣", "8\uFE0F⃣", "9\uFE0F⃣",
+                        "Назад", "0\uFE0F⃣", "Стереть",
                         "Ввод", "Сброс"
                 ),
                 List.of(

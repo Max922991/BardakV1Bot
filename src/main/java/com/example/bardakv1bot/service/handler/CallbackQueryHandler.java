@@ -35,9 +35,6 @@ public class CallbackQueryHandler {
         if ("finish_order".equals(callbackData)) {
                 return orderManager.answerCallbackQuery(callbackQuery, bot);
         }
-        if ("change_number".equals(callbackData)) {
-            return orderManager.answerCallbackQuery(callbackQuery, bot);
-        }
         if ("next_step".equals(callbackData)) {
             return orderManager.answerCallbackQuery(callbackQuery, bot);
         }
@@ -57,7 +54,7 @@ public class CallbackQueryHandler {
             case FEEDBACK -> {
                 return feedbackManager.answerCallbackQuery(callbackQuery, bot);
             }
-            case CARWASH, DAY_1, DAY_2, DAY_3, DAY_4, DAY_5, DAY_6, DAY_7, WASH1, WASH2, WASH3, WASH4 -> {
+            case CARWASH, DAY_1, DAY_2, DAY_3, DAY_4, DAY_5, DAY_6, DAY_7 -> {
                 return orderManager.answerCallbackQuery(callbackQuery, bot);
             }
         }

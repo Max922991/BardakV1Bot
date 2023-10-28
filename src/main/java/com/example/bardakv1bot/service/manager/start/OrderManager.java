@@ -53,12 +53,10 @@ public class OrderManager extends AbstractManager {
         return null;
     }
 
-
     @Override
     public BotApiMethod<?> answerMessage(Message message, Bot bot) {
         return null;
     }
-
 
     @Override
     @Transactional

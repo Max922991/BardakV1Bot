@@ -1,5 +1,6 @@
 package com.example.bardakv1bot.service.manager.start;
 
+import com.example.bardakv1bot.entity.Client;
 import com.example.bardakv1bot.entity.PhoneNumber;
 import com.example.bardakv1bot.factory.AnswerMethodFactory;
 import com.example.bardakv1bot.factory.KeyboardFactory;
@@ -18,7 +19,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 
 import java.util.List;
 
-import static com.example.bardakv1bot.data.CallbackData.*;
+import static com.example.bardakv1bot.data.Callback.*;
 
 /**
  * @author nerzon
@@ -44,17 +45,20 @@ public class PhoneManager extends AbstractManager {
 
     @Override
     public BotApiMethod<?> answerCallbackQuery(CallbackQuery callbackQuery, Bot bot) {
-        String data = callbackQuery.getData();
-        String[] words = data.split("_");
-        if (phone_drop.equals(data)) {
-            return dropNumber(callbackQuery);
-        }
+        String[] words = callbackQuery.getData().split("_");
         switch (words.length) {
             case 1 -> {
-                return mainMenu(callbackQuery);
+                return mainMenu(callbackQuery, null, null);
             }
             case 2 -> {
-                return removeDigit(callbackQuery);
+                switch (words[1]) {
+                    case "backspace" -> {
+                        return removeDigit(callbackQuery);
+                    }
+                    case "drop" -> {
+                        return dropNumber(callbackQuery);
+                    }
+                }
             }
             case 3 -> {
                 return addDigit(callbackQuery, words[2]);
@@ -68,7 +72,7 @@ public class PhoneManager extends AbstractManager {
         PhoneNumber phoneNumber = phoneRepo.findByClient(client);
         phoneNumber.plusDigit(digit);
         phoneRepo.save(phoneNumber);
-        return mainMenu(callbackQuery);
+        return mainMenu(callbackQuery, client, phoneNumber);
     }
 
     private BotApiMethod<?> removeDigit(CallbackQuery callbackQuery) {
@@ -76,31 +80,31 @@ public class PhoneManager extends AbstractManager {
         PhoneNumber phoneNumber = phoneRepo.findByClient(client);
         phoneNumber.minusDigit();
         phoneRepo.save(phoneNumber);
-        return mainMenu(callbackQuery);
+        return mainMenu(callbackQuery, client, phoneNumber);
     }
 
-    public BotApiMethod<?> mainMenu(CallbackQuery callbackQuery) {
+    public BotApiMethod<?> mainMenu(CallbackQuery callbackQuery, Client client, PhoneNumber phoneNumber) {
         return methodFactory.getEditMessageText(
                 callbackQuery,
                 "Введите номер телефона, используя кнопки на циферблате",
-                getMainKeyboard(callbackQuery.getMessage().getChatId())
+                getMainKeyboard(callbackQuery.getMessage().getChatId(), client, phoneNumber)
         );
     }
 
     public BotApiMethod<?> dropNumber(CallbackQuery callbackQuery) {
-
         var client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
         PhoneNumber phoneNumber = phoneRepo.findByClient(client);
         phoneNumber.drop();
         phoneRepo.save(phoneNumber);
-
-        return mainMenu(callbackQuery);
+        return mainMenu(callbackQuery, client, phoneNumber);
     }
 
-    private InlineKeyboardMarkup getMainKeyboard(Long chatId) {
-        var client = clientRepo.findById(chatId).orElseThrow();
-        PhoneNumber phoneNumber = phoneRepo.findByClient(client);
-        if (phoneNumber == null) {
+    private InlineKeyboardMarkup getMainKeyboard(Long chatId, Client client, PhoneNumber phoneNumber) {
+        if (phoneNumber == null && client == null) {
+            phoneNumber = new PhoneNumber();
+            phoneNumber.setClient(clientRepo.findById(chatId).orElseThrow());
+            phoneRepo.save(phoneNumber);
+        } else if (phoneNumber == null) {
             phoneNumber = new PhoneNumber();
             phoneNumber.setClient(client);
             phoneRepo.save(phoneNumber);
@@ -122,8 +126,8 @@ public class PhoneManager extends AbstractManager {
                         phone_digit_ + "1", phone_digit_ + "2", phone_digit_ + "3",
                         phone_digit_ + "4", phone_digit_ + "5", phone_digit_ + "6",
                         phone_digit_ + "7", phone_digit_ + "8", phone_digit_ + "9",
-                        "next_step", phone_digit_ + "0", phone_backspace,
-                        phone_enter, phone_drop
+                        "next_step", phone_digit_ + "0", phone_backspace.name(),
+                        order_enter.name(), phone_drop.name()
                 )
         );
     }

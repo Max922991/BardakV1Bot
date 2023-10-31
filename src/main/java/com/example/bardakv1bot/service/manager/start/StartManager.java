@@ -14,7 +14,7 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 
 import java.util.List;
 
-import static com.example.bardakv1bot.data.CallbackData.*;
+import static com.example.bardakv1bot.data.Callback.*;
 
 @Component
 @RequiredArgsConstructor
@@ -32,7 +32,7 @@ public class StartManager extends AbstractManager {
                 keyboardFactory.getInlineKeyboard(
                         List.of("Помощь", "Обратная связь", "Запись на мойку"),
                         List.of(3),
-                        List.of(HELP, FEEDBACK, CARWASH)
+                        List.of(help.name(), feedback.name(), order.name())
                 )
         );
     }

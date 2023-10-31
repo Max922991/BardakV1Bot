@@ -1,5 +1,6 @@
 package com.example.bardakv1bot.service.manager.start;
 
+import com.example.bardakv1bot.data.Callback;
 import com.example.bardakv1bot.entity.Action;
 import com.example.bardakv1bot.entity.Client;
 import com.example.bardakv1bot.entity.Order;
@@ -33,7 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-import static com.example.bardakv1bot.data.CallbackData.*;
+import static com.example.bardakv1bot.data.Callback.*;
 
 @Slf4j
 @Component
@@ -62,39 +63,46 @@ public class OrderManager extends AbstractManager {
     @Override
     @Transactional
     public BotApiMethod<?> answerCallbackQuery(CallbackQuery callbackQuery, Bot bot) {
-        String queryData = callbackQuery.getData();
-        String keyWord = queryData.split("_")[0];
-        if ("close".equals(keyWord)) {
-            return closeOrder(callbackQuery, queryData.split("_")[2]);
-        }
-        if (phone_enter.equals(queryData)) {
-            return saveNewPhoneNumber(callbackQuery);
-        }
-        if ("finish_order".equals(queryData)) {
-            try {
-                return finishOrder(callbackQuery, bot);
-            } catch (TelegramApiException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        if ("next_step".equals(queryData)) {
-            return nextStep(callbackQuery);
-        }
-        if ("service".equals(keyWord)) {
-            return addService(callbackQuery, queryData.split("_")[1]);
-        }
-        if ("time".equals(keyWord)) {
-            if (queryData.split("_").length == 2) {
-                return putTime(callbackQuery);
-            }
-            return chooseTime(callbackQuery);
-        }
-        switch (queryData) {
-            case CARWASH -> {
+        String[] words = callbackQuery.getData().split("_");
+        switch (words.length) {
+            case 1 -> {
                 return washRecord(callbackQuery);
             }
-            case DAY_1, DAY_2, DAY_3, DAY_4, DAY_5, DAY_6, DAY_7 -> {
-                return chooseService(callbackQuery, true);
+            case 2 -> {
+                switch (words[1]) {
+                    case "enter" -> {
+                        return saveNewPhoneNumber(callbackQuery);
+                    }
+                    case "time" -> {
+                        return chooseTime(callbackQuery);
+                    }
+                    case "finish" -> {
+                        try {
+                            return finishOrder(callbackQuery, bot);
+                        } catch (TelegramApiException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }
+            }
+            case 3 -> {
+                switch (words[1]) {
+                    case "next" -> {
+                        return nextStep(callbackQuery);
+                    }
+                    case "time" -> {
+                        return putTime(callbackQuery);
+                    }
+                    case "close" -> {
+                        return closeOrder(callbackQuery, words[2]);
+                    }
+                    case "service" -> {
+                        return addService(callbackQuery, words[2]);
+                    }
+                    case "day" -> {
+                        return chooseService(callbackQuery, true);
+                    }
+                }
             }
         }
         return null;
@@ -125,7 +133,7 @@ public class OrderManager extends AbstractManager {
     private BotApiMethod<?> putTime(CallbackQuery callbackQuery) {
         Client client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
         Order order = orderRepo.findByClientAndRecord(client, false);
-        order.setTimeOfRecord(callbackQuery.getData().split("_")[1]);
+        order.setTimeOfRecord(callbackQuery.getData().split("_")[2]);
         orderRepo.save(order);
         return chooseTime(callbackQuery);
     }
@@ -133,7 +141,6 @@ public class OrderManager extends AbstractManager {
     private BotApiMethod<?> nextStep(CallbackQuery callbackQuery) {
         Client client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
         String phoneNumber = client.getPhoneNumber();
-
         if (phoneNumber != null) {
             return methodFactory.getEditMessageText(
                     callbackQuery,
@@ -141,7 +148,7 @@ public class OrderManager extends AbstractManager {
                     keyboardFactory.getInlineKeyboard(
                             List.of(phoneNumber, "Ввести другой"),
                             List.of(2),
-                            List.of(FINISH_ORDER, phone)
+                            List.of(order_finish.name(), phone_.name())
                     )
             );
         }
@@ -155,7 +162,6 @@ public class OrderManager extends AbstractManager {
         order.setRecord(true);
         order.setCompleted(false);
         orderRepo.save(order);
-//todo клавиатура с кнопкой "ЗАВЕРШЕН"
         bot.execute(
                 methodFactory.getSendMessage(
                         660883009L,
@@ -163,12 +169,10 @@ public class OrderManager extends AbstractManager {
                         keyboardFactory.getInlineKeyboard(
                                 List.of("Завершить"),
                                 List.of(1),
-                                List.of("close_project_" + order.getId())
+                                List.of(order_close_.name() + order.getId())
                         )
                 )
-
         );
-
         return methodFactory.getEditMessageText(
                 callbackQuery,
                 getOrderInfo(order),
@@ -201,7 +205,7 @@ public class OrderManager extends AbstractManager {
 
         text.add("\uD83D\uDD19 Назад");
         cfg.add(1);
-        data.add(CARWASH);
+        data.add(order.name());
         var user = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
         var order = orderRepo.findByClientAndRecord(user, false);
         List<Order> orders = orderRepo.findAllByRecordAndCompleted(true, false);
@@ -224,7 +228,7 @@ public class OrderManager extends AbstractManager {
                     } else {
                         text.add(time);
                     }
-                    data.add("time_" + time);
+                    data.add(order_time_.name()+ time);
                     row += 1;
                 }
             }
@@ -238,14 +242,14 @@ public class OrderManager extends AbstractManager {
                 } else {
                     text.add(time);
                 }
-                data.add("time_" + time);
+                data.add(order_time_.name() + time);
             }
             cfg.add(timeList.size());
         }
 
         text.add("Далее \uD83D\uDD1C");
         cfg.add(1);
-        data.add("next_step");
+        data.add(order_next_step.name());
         return methodFactory.getEditMessageText(
                 callbackQuery,
                 "Выберете время",
@@ -266,7 +270,6 @@ public class OrderManager extends AbstractManager {
         } else {
             order.addService(service);
         }
-
         orderRepo.save(order);
         return chooseService(callbackQuery, false);
     }
@@ -275,7 +278,7 @@ public class OrderManager extends AbstractManager {
         var client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
         var order = orderRepo.findByClientAndRecord(client, false);
         if (flag) {
-            Integer dayNumber = Integer.parseInt(callbackQuery.getData().split("_")[1]);
+            Integer dayNumber = Integer.parseInt(callbackQuery.getData().split("_")[2]);
             order.setWeekDay(DayOfWeek.of(dayNumber).getDisplayName(TextStyle.FULL, Locale.ROOT));
             orderRepo.save(order);
         }
@@ -298,7 +301,7 @@ public class OrderManager extends AbstractManager {
             } else {
                 text.add(service.getTittle());
             }
-            data.add("service_" + service.getId());
+            data.add(order_service_.name() + service.getId());
             if (row == 3) {
                 cfg.add(row);
                 row = 0;
@@ -311,8 +314,8 @@ public class OrderManager extends AbstractManager {
         cfg.add(2);
         text.add("\uD83D\uDD19 Назад");
         text.add("Далее \uD83D\uDD1C");
-        data.add(CARWASH);
-        data.add(TIME);
+        data.add(Callback.order.name());
+        data.add(order_time_.name());
         return keyboardFactory.getInlineKeyboard(
                 text, cfg, data
         );
@@ -340,11 +343,11 @@ public class OrderManager extends AbstractManager {
         int dayNumber = LocalDateTime.now().getDayOfWeek().getValue();
         for (int day = dayNumber; day <= 7; day++) {
             text.add(DayOfWeek.of(day).getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
-            data.add("day_" + day);
+            data.add(order_day_.name() + day);
         }
         for (int day = 1; day < dayNumber; day++) {
             text.add(DayOfWeek.of(day).getDisplayName(TextStyle.SHORT, Locale.ENGLISH));
-            data.add("day_" + day);
+            data.add(order_day_.name() + day);
         }
         return keyboardFactory.getInlineKeyboard(
                 text,

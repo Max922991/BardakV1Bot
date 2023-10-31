@@ -12,7 +12,6 @@ public class CallbackData {
     public static final String HELP = "help";
     public static final String CARWASH = "carwash";
 
-
     public static final String DAY_1 = "day_1";
     public static final String DAY_2 = "day_2";
     public static final String DAY_3 = "day_3";
@@ -20,7 +19,6 @@ public class CallbackData {
     public static final String DAY_5 = "day_5";
     public static final String DAY_6 = "day_6";
     public static final String DAY_7 = "day_7";
-
 
     public static final String TIME = "time_";
 

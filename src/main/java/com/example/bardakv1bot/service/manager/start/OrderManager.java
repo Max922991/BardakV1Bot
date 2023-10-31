@@ -18,6 +18,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -63,6 +64,9 @@ public class OrderManager extends AbstractManager {
     public BotApiMethod<?> answerCallbackQuery(CallbackQuery callbackQuery, Bot bot) {
         String queryData = callbackQuery.getData();
         String keyWord = queryData.split("_")[0];
+        if ("close".equals(keyWord)) {
+            return closeOrder(callbackQuery, queryData.split("_")[2]);
+        }
         if (phone_enter.equals(queryData)) {
             return saveNewPhoneNumber(callbackQuery);
         }
@@ -94,6 +98,16 @@ public class OrderManager extends AbstractManager {
             }
         }
         return null;
+    }
+
+    private BotApiMethod<?> closeOrder(CallbackQuery callbackQuery, String s) {
+        Order order = orderRepo.findById(Long.valueOf(s)).orElseThrow();
+        order.setCompleted(true);
+        orderRepo.save(order);
+        return AnswerCallbackQuery.builder()
+                .callbackQueryId(callbackQuery.getId())
+                .text("Заказ завершен!")
+                .build();
     }
 
     private BotApiMethod<?> saveNewPhoneNumber(CallbackQuery callbackQuery) {
@@ -139,15 +153,20 @@ public class OrderManager extends AbstractManager {
         Client client = clientRepo.findById(id).orElseThrow();
         Order order = orderRepo.findByClientAndRecord(client, false);
         order.setRecord(true);
-        order.setCompleted(true);
+        order.setCompleted(false);
         orderRepo.save(order);
 //todo клавиатура с кнопкой "ЗАВЕРШЕН"
         bot.execute(
                 methodFactory.getSendMessage(
                         660883009L,
                         getOrderInfo(order) + "\n" + "order ID " + order.getId(),
-                        null
+                        keyboardFactory.getInlineKeyboard(
+                                List.of("Завершить"),
+                                List.of(1),
+                                List.of("close_project_" + order.getId())
+                        )
                 )
+
         );
 
         return methodFactory.getEditMessageText(

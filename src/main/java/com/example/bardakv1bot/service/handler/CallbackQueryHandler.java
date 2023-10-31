@@ -26,6 +26,9 @@ public class CallbackQueryHandler {
     public BotApiMethod<?> answer(CallbackQuery callbackQuery, Bot bot) {
         String callbackData = callbackQuery.getData();
         String keyWord = callbackData.split("_")[0];
+        if ("close".equals(keyWord)) {
+            orderManager.answerCallbackQuery(callbackQuery, bot);
+        }
         if ("phone".equals(keyWord)) {
             if ("phone_enter".equals(callbackData)) {
                 return orderManager.answerCallbackQuery(callbackQuery, bot);

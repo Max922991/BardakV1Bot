@@ -100,14 +100,16 @@ public class PhoneManager extends AbstractManager {
     }
 
     private InlineKeyboardMarkup getMainKeyboard(Long chatId, Client client, PhoneNumber phoneNumber) {
-        if (phoneNumber == null && client == null) {
-            phoneNumber = new PhoneNumber();
-            phoneNumber.setClient(clientRepo.findById(chatId).orElseThrow());
-            phoneRepo.save(phoneNumber);
-        } else if (phoneNumber == null) {
-            phoneNumber = new PhoneNumber();
-            phoneNumber.setClient(client);
-            phoneRepo.save(phoneNumber);
+        if (phoneNumber == null) {
+            if (client == null) {
+                client = clientRepo.findById(chatId).orElseThrow();
+            }
+            phoneNumber = phoneRepo.findByClient(client);
+            if (phoneNumber == null) {
+                phoneNumber = new PhoneNumber();
+                phoneNumber.setClient(client);
+                phoneRepo.save(phoneNumber);
+            }
         }
         return keyboardFactory.getInlineKeyboard(
                 List.of(

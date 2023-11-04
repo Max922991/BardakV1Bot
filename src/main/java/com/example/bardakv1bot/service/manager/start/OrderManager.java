@@ -76,6 +76,9 @@ public class OrderManager extends AbstractManager {
                     case "time" -> {
                         return chooseTime(callbackQuery);
                     }
+                    case "service" -> {
+                        return checkForTime(callbackQuery);
+                    }
                     case "finish" -> {
                         try {
                             return finishOrder(callbackQuery, bot);
@@ -100,14 +103,24 @@ public class OrderManager extends AbstractManager {
                         return addService(callbackQuery, words[2]);
                     }
                     case "day" -> {
-                        return chooseService(callbackQuery, true);
+                        return putDay(callbackQuery);
                     }
                 }
             }
         }
         return null;
     }
-
+    private BotApiMethod<?> checkForTime(CallbackQuery callbackQuery) {
+        var client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
+        var order = orderRepo.findByClientAndRecord(client, false);
+        if (order.getTimeOfRecord() != null && !order.getTimeOfRecord().isEmpty()) {
+            return chooseService(callbackQuery);
+        }
+        return AnswerCallbackQuery.builder()
+                .callbackQueryId(callbackQuery.getId())
+                .text("Вы обязаны указать время!")
+                .build();
+    }
     private BotApiMethod<?> closeOrder(CallbackQuery callbackQuery, String s) {
         Order order = orderRepo.findById(Long.valueOf(s)).orElseThrow();
         order.setCompleted(true);
@@ -249,7 +262,7 @@ public class OrderManager extends AbstractManager {
 
         text.add("Далее \uD83D\uDD1C");
         cfg.add(1);
-        data.add(order_next_step.name());
+        data.add(order_service_.name());
         return methodFactory.getEditMessageText(
                 callbackQuery,
                 "Выберете время",
@@ -271,17 +284,21 @@ public class OrderManager extends AbstractManager {
             order.addService(service);
         }
         orderRepo.save(order);
-        return chooseService(callbackQuery, false);
+        return chooseService(callbackQuery);
     }
 
-    private BotApiMethod<?> chooseService(CallbackQuery callbackQuery, boolean flag) {
+    private BotApiMethod<?> putDay(CallbackQuery callbackQuery) {
         var client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
         var order = orderRepo.findByClientAndRecord(client, false);
-        if (flag) {
-            Integer dayNumber = Integer.parseInt(callbackQuery.getData().split("_")[2]);
-            order.setWeekDay(DayOfWeek.of(dayNumber).getDisplayName(TextStyle.FULL, Locale.ROOT));
-            orderRepo.save(order);
-        }
+        int dayNumber = Integer.parseInt(callbackQuery.getData().split("_")[2]);
+        order.setWeekDay(DayOfWeek.of(dayNumber).getDisplayName(TextStyle.FULL, Locale.ROOT));
+        orderRepo.save(order);
+        return chooseTime(callbackQuery);
+    }
+
+    private BotApiMethod<?> chooseService(CallbackQuery callbackQuery) {
+        var client = clientRepo.findById(callbackQuery.getMessage().getChatId()).orElseThrow();
+        var order = orderRepo.findByClientAndRecord(client, false);
         return methodFactory.getEditMessageText(
                 callbackQuery,
                 "Выберете услугу",
@@ -314,8 +331,8 @@ public class OrderManager extends AbstractManager {
         cfg.add(2);
         text.add("\uD83D\uDD19 Назад");
         text.add("Далее \uD83D\uDD1C");
-        data.add(Callback.order.name());
         data.add(order_time_.name());
+        data.add(order_next_step.name());
         return keyboardFactory.getInlineKeyboard(
                 text, cfg, data
         );
@@ -356,6 +373,3 @@ public class OrderManager extends AbstractManager {
         );
     }
 }
-
-
-

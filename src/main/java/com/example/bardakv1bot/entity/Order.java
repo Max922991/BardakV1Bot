@@ -24,7 +24,7 @@ public class Order {
 
     @Column(name = "time_of_record")
     String timeOfRecord;
-
+    @Column(name = "weekday")
     String weekDay;
 
     @Column(name = "is_verified")
